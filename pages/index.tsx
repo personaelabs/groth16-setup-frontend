@@ -24,6 +24,7 @@ export default function Home() {
   const [prevZkeyBytes, setPrevZkeyBytes] = useState<Uint8Array | null>(null);
   const [entropy, setEntropy] = useState<string[]>([]);
 
+  // NOTE: reads zkey into mem
   const onDrop = useCallback((files: File[]) => {
     console.log("Accepted prev zkey: ", files[0]);
 
@@ -58,16 +59,21 @@ export default function Home() {
     }
   };
 
+  // NOTE: writes new zkey to mem.
   const runContribution = async () => {
     console.log("Running zkey contribution w/ entropy: ", entropy);
+    const memZkey = {
+      type: "mem",
+    };
     const ret = await snarkjs.zKey.contribute(
       prevZkeyBytes,
-      "new.zkey", // TODO: how could this be opened by downstream lib?
+      memZkey,
       "dummy name", // TODO: name by contributor?
       entropy.join("")
     );
 
-    console.log("Result: ", ret);
+    console.log("contrib hash: ", ret);
+    console.log("memZkey: ", memZkey);
   };
 
   return (
