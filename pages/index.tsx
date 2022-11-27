@@ -6,7 +6,6 @@ import React, { useCallback, useState } from "react";
 import { useDropzone } from "react-dropzone";
 
 const snarkjs = require("snarkjs");
-// console.log(snarkjs.zKey.contribute);
 
 enum Stage {
   PREV_ZKEY,
@@ -16,7 +15,7 @@ enum Stage {
 }
 
 // TODO: change back to 50 after testing
-const DESIRED_ENTROPY_LEN = 2;
+const DESIRED_ENTROPY_LEN = 50;
 
 export default function Home() {
   const [stage, setStage] = useState<Stage>(Stage.PREV_ZKEY);
@@ -26,16 +25,13 @@ export default function Home() {
 
   // NOTE: reads zkey into mem
   const onDrop = useCallback((files: File[]) => {
-    console.log("Accepted prev zkey: ", files[0]);
-    console.log("reading bytes");
     const reader = new FileReader();
     reader.onabort = () => console.log("file reading was aborted");
     reader.onerror = () => console.log("file reading has failed");
     reader.onload = () => {
       // Do whatever you want with the file contents
       const binaryStr = reader.result as ArrayBuffer;
-      console.log("Finished reading!");
-      console.log("length", binaryStr.byteLength);
+      console.log("file byte length", binaryStr.byteLength);
       setPrevZkeyBytes(new Uint8Array(binaryStr));
       setStage(Stage.ENTROPY);
     };
@@ -50,7 +46,7 @@ export default function Home() {
     setEntropy(newEntropy);
 
     if (entropy.length >= DESIRED_ENTROPY_LEN) {
-      console.log(`all set! ${DESIRED_ENTROPY_LEN} keys collected1`);
+      console.log(`collected ${DESIRED_ENTROPY_LEN} keypressses of entropy`);
       setStage(Stage.CONTRIBUTING);
       await runContribution();
     }
@@ -59,7 +55,7 @@ export default function Home() {
   const runContribution = async () => {
     const startTime = Date.now();
 
-    console.log("Running zkey contribution w/ entropy: ", entropy);
+    console.log("running zkey contribution w/ entropy: ", entropy);
     const memZkey = {
       type: "mem",
       data: new Uint8Array(0),
@@ -68,14 +64,14 @@ export default function Home() {
       prevZkeyBytes,
       memZkey,
       "dummy name", // TODO: name by contributor?
-      entropy.join("")
+      entropy.join(""),
+      console
     );
 
-    console.log("hash: ", ret);
-    console.log("output zkey: ", memZkey);
+    console.log("finished contribution in ", Date.now() - startTime, "ms");
+    console.log("zkey bytes: ", memZkey);
 
-    console.log("Finished contribution in ", Date.now() - startTime, "ms");
-
+    setStage(Stage.FINISHED);
     await downloadZkeyData(memZkey.data as Uint8Array);
   };
 
@@ -135,6 +131,15 @@ export default function Home() {
           {stage === Stage.CONTRIBUTING && (
             <div>
               <p>Entropy collected! Computing phase2 contribution...</p>
+            </div>
+          )}
+
+          {stage == Stage.FINISHED && (
+            <div>
+              <p>
+                All done! New Zkey downloaded. Please pass it to the next
+                participant.
+              </p>
             </div>
           )}
         </div>
