@@ -27,10 +27,8 @@ export default function Home() {
   // NOTE: reads zkey into mem
   const onDrop = useCallback((files: File[]) => {
     console.log("Accepted prev zkey: ", files[0]);
-
     console.log("reading bytes");
     const reader = new FileReader();
-
     reader.onabort = () => console.log("file reading was aborted");
     reader.onerror = () => console.log("file reading has failed");
     reader.onload = () => {
@@ -39,7 +37,6 @@ export default function Home() {
       console.log("Finished reading!");
       console.log("length", binaryStr.byteLength);
       setPrevZkeyBytes(new Uint8Array(binaryStr));
-
       setStage(Stage.ENTROPY);
     };
     reader.readAsArrayBuffer(files[0]);
@@ -59,11 +56,13 @@ export default function Home() {
     }
   };
 
-  // NOTE: writes new zkey to mem.
   const runContribution = async () => {
+    const startTime = Date.now();
+
     console.log("Running zkey contribution w/ entropy: ", entropy);
     const memZkey = {
       type: "mem",
+      data: new Uint8Array(0),
     };
     const ret = await snarkjs.zKey.contribute(
       prevZkeyBytes,
@@ -72,8 +71,33 @@ export default function Home() {
       entropy.join("")
     );
 
-    console.log("contrib hash: ", ret);
-    console.log("memZkey: ", memZkey);
+    console.log("hash: ", ret);
+    console.log("output zkey: ", memZkey);
+
+    console.log("Finished contribution in ", Date.now() - startTime, "ms");
+
+    await downloadZkeyData(memZkey.data as Uint8Array);
+  };
+
+  const downloadZkeyData = async (data: Uint8Array) => {
+    var blob = new Blob([data.buffer]);
+    var url = URL.createObjectURL(blob);
+
+    // NOTE: jank hack for downloading...
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", "contribution.zkey");
+
+    // Append to html link element page
+    document.body.appendChild(link);
+
+    // Start download
+    link.click();
+
+    // Clean up and remove the link
+    if (link.parentNode) {
+      link.parentNode.removeChild(link);
+    }
   };
 
   return (
@@ -87,7 +111,6 @@ export default function Home() {
       <main className={styles.main}>
         <h1 className={styles.title}>Personae Lab trusted setup</h1>
 
-        {/* based on stage, get zkey or get entropy or run contribution or download */}
         <div className={styles.description}>
           {stage === Stage.PREV_ZKEY && (
             <div {...getRootProps()}>
@@ -109,7 +132,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* This phase is basically just running snarkjs stuff in the bg */}
           {stage === Stage.CONTRIBUTING && (
             <div>
               <p>Entropy collected! Computing phase2 contribution...</p>
