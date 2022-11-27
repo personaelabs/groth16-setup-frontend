@@ -8,34 +8,44 @@ import { useDropzone } from "react-dropzone";
 const snarkjs = require("snarkjs");
 // console.log(snarkjs.zKey.contribute);
 
-// step 1: prev zkey
-// step 2: send entropy
-// step 3: run contribution, send back new zkey
-
 enum Stage {
   PREV_ZKEY,
   ENTROPY,
   CONTRIBUTING,
-  FINISHED,
+  FINISHED, // download ready
 }
 
-const DESIRED_ENTROPY_LEN = 50;
+// TODO: change back to 50 after testing
+const DESIRED_ENTROPY_LEN = 2;
 
 export default function Home() {
-  // TODO: start at PREV_ZKEY
-  const [stage, setStage] = useState<Stage>(Stage.ENTROPY);
+  const [stage, setStage] = useState<Stage>(Stage.PREV_ZKEY);
 
-  const [prevZkey, setPrevZkey] = useState<File | null>(null);
+  const [prevZkeyBytes, setPrevZkeyBytes] = useState<Uint8Array | null>(null);
   const [entropy, setEntropy] = useState<string[]>([]);
 
-  const onDrop = useCallback((acceptedFiles: File[]) => {
-    setPrevZkey(acceptedFiles[0]);
-    console.log("Accepted prev zkey: ", acceptedFiles[0]);
-    setStage(Stage.ENTROPY);
+  const onDrop = useCallback((files: File[]) => {
+    console.log("Accepted prev zkey: ", files[0]);
+
+    console.log("reading bytes");
+    const reader = new FileReader();
+
+    reader.onabort = () => console.log("file reading was aborted");
+    reader.onerror = () => console.log("file reading has failed");
+    reader.onload = () => {
+      // Do whatever you want with the file contents
+      const binaryStr = reader.result as ArrayBuffer;
+      console.log("Finished reading!");
+      console.log("length", binaryStr.byteLength);
+      setPrevZkeyBytes(new Uint8Array(binaryStr));
+
+      setStage(Stage.ENTROPY);
+    };
+    reader.readAsArrayBuffer(files[0]);
   }, []);
   const { getRootProps, getInputProps, isDragActive } = useDropzone({ onDrop });
 
-  const handleEntropyKeyDown = (
+  const handleEntropyKeyDown = async (
     event: React.KeyboardEvent<HTMLInputElement>
   ) => {
     const newEntropy = [...entropy, event.key];
@@ -44,8 +54,20 @@ export default function Home() {
     if (entropy.length >= DESIRED_ENTROPY_LEN) {
       console.log(`all set! ${DESIRED_ENTROPY_LEN} keys collected1`);
       setStage(Stage.CONTRIBUTING);
-      // TODO: start contribution
+      await runContribution();
     }
+  };
+
+  const runContribution = async () => {
+    console.log("Running zkey contribution w/ entropy: ", entropy);
+    const ret = await snarkjs.zKey.contribute(
+      prevZkeyBytes,
+      "new.zkey", // TODO: how could this be opened by downstream lib?
+      "dummy name", // TODO: name by contributor?
+      entropy.join("")
+    );
+
+    console.log("Result: ", ret);
   };
 
   return (
@@ -72,7 +94,6 @@ export default function Home() {
             </div>
           )}
 
-          {/* TODO: on keyboard presses, record all until have received 'N', i.e. 100 length string */}
           {stage === Stage.ENTROPY && (
             <div onKeyDown={handleEntropyKeyDown} tabIndex={0}>
               <div>
@@ -85,7 +106,7 @@ export default function Home() {
           {/* This phase is basically just running snarkjs stuff in the bg */}
           {stage === Stage.CONTRIBUTING && (
             <div>
-              <p>Entropy collected! Computing phase2 contribution.</p>
+              <p>Entropy collected! Computing phase2 contribution...</p>
             </div>
           )}
         </div>
