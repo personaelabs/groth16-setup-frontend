@@ -123,6 +123,10 @@ export default function Home() {
             <div onKeyDown={handleEntropyKeyDown} tabIndex={0}>
               <div>
                 <p>Click me, then type random characters for entropy.</p>
+                <p>
+                  You may need to disable extensions like Vimium that take
+                  keyboard input.
+                </p>
                 <p>Fight muscle memory! The more random the better</p>
               </div>
             </div>
