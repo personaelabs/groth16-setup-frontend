@@ -105,7 +105,7 @@ export default function Home() {
       </Head>
 
       <main className={styles.main}>
-        <h1 className={styles.title}>Personae Lab trusted setup</h1>
+        <h1 className={styles.title}>Personae Labs trusted setup</h1>
 
         <div className={styles.description}>
           {stage === Stage.PREV_ZKEY && (
